@@ -10,6 +10,9 @@ export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_RESTART = 4;
 export const ACTION_MUTE = 8;
+export const ACTION_PICK_1 = 16;
+export const ACTION_PICK_2 = 32;
+export const ACTION_PICK_3 = 64;
 
 export function createInput(canvas) {
   const keys = new Set();
@@ -32,6 +35,9 @@ export function createInput(canvas) {
     if (event.key === 'p' || event.key === 'P' || event.key === 'Escape') actions |= ACTION_PAUSE;
     if (event.key === 'r' || event.key === 'R') actions |= ACTION_RESTART;
     if (event.key === 'm' || event.key === 'M') actions |= ACTION_MUTE;
+    if (event.key === '1') actions |= ACTION_PICK_1;
+    if (event.key === '2') actions |= ACTION_PICK_2;
+    if (event.key === '3') actions |= ACTION_PICK_3;
   });
   window.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
   window.addEventListener('blur', () => keys.clear());

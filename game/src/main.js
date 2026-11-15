@@ -1,7 +1,7 @@
 // Boot and the one loop: input is read every frame, the world advances in fixed
 // 1/60 s steps (several in a slow frame, none in a fast one), and the renderer
-// paints what is there. The game moves between five screens: title, play,
-// paused, victory and game over.
+// paints what is there. The game moves between six screens: title, play,
+// blessing, paused, victory and game over.
 //
 // ?seed=N fixes the moth pattern. ?shot=start|play|boss|victory (with &seed=N)
 // stages that scene instead of running the loop, paints it twice and sets
@@ -11,12 +11,12 @@ import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
 import {
-  createWorld, EVENT_BLOOM_HURT, EVENT_BOSS, EVENT_ENRAGE, EVENT_HURT,
+  createWorld, EVENT_BLESSING, EVENT_BLOOM_HURT, EVENT_BOSS, EVENT_ENRAGE, EVENT_HURT,
   EVENT_KILL, EVENT_OVER, EVENT_PICKUP, EVENT_SPORE_POP, EVENT_SPIT,
   EVENT_WAVE_CLEAR, EVENT_WAVE_START, EVENT_WIN,
 } from './world.js';
-import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_RESTART, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_VICTORY } from './render.js';
+import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
+import { createRenderer, pickBlessingCard, SCREEN_BLESSING, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_VICTORY } from './render.js';
 import { stageShot } from './shots.js';
 
 /** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
@@ -98,6 +98,18 @@ function runGame() {
       const muted = audio.toggleMute();
       announce(muted ? 'Muted.' : 'Sound on.');
     }
+    // On the blessing screen, 1 / 2 / 3 (or a click) takes a card, and the
+    // garden resumes. Nothing else on this screen spends the press, though
+    // R still restarts the run from here.
+    if (screen === SCREEN_BLESSING) {
+      const pick = actions & ACTION_PICK_1 ? 0 : actions & ACTION_PICK_2 ? 1 : actions & ACTION_PICK_3 ? 2 : -1;
+      if (pick >= 0 && world.chooseBlessing(pick)) {
+        screen = SCREEN_PLAY;
+        announce('Blessing chosen. Keep guarding the garden.');
+      }
+      if (actions & ACTION_RESTART) startGame();
+      return;
+    }
     if (actions & ACTION_RESTART && screen !== SCREEN_TITLE) {
       startGame();
       return;
@@ -118,6 +130,7 @@ function runGame() {
     if (events & EVENT_HURT) audio.hurt();
     if (events & EVENT_BLOOM_HURT) audio.bloomHurt();
     if (events & EVENT_WAVE_CLEAR) audio.waveClear();
+    if (events & EVENT_BLESSING) audio.blessing();
     if (events & EVENT_WAVE_START) audio.waveStart();
     if (events & EVENT_BOSS) audio.bossRoar();
     if (events & EVENT_PICKUP) audio.pickup();
@@ -149,9 +162,15 @@ function runGame() {
     last = now;
     handleActions();
     if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
+      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY) && !world.state.blessingDraft) {
         step();
         accumulator -= STEP;
+      }
+      // The garden just offered a blessing: hold the fight on the choice
+      // screen until the warden picks one, instead of letting moths feed.
+      if (world.state.blessingDraft && screen === SCREEN_PLAY) {
+        screen = SCREEN_BLESSING;
+        announce('Choose a blessing: press 1, 2 or 3, or click a card.');
       }
     } else {
       accumulator = 0;
@@ -167,9 +186,18 @@ function runGame() {
     }
   });
 
-  // A click anywhere on the title / end screens starts the game.
+  // A click anywhere on the title / end screens starts the game; on the
+  // blessing screen it takes the card under the cursor instead.
   canvas.addEventListener('mousedown', () => {
     audio.unlock();
+    if (screen === SCREEN_BLESSING) {
+      const card = pickBlessingCard(input.mouse.x, input.mouse.y);
+      if (card >= 0 && world.chooseBlessing(card)) {
+        screen = SCREEN_PLAY;
+        announce('Blessing chosen. Keep guarding the garden.');
+      }
+      return;
+    }
     if (screen === SCREEN_TITLE || screen === SCREEN_OVER || screen === SCREEN_VICTORY) startGame();
   });
 

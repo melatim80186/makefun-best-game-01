@@ -1,8 +1,9 @@
 // All sound is synthesised with WebAudio: no audio files, no network. A
 // tiny pentatonic pluck for shots, a chime for kills, a low thud for damage,
-// a harp arpeggio for wave clears, a fanfare for victory — and a soft night
-// drone underneath it all once the player first interacts, so the garden
-// hums even between waves. Everything is guarded so a missing or locked
+// a harp arpeggio for wave clears, a warm rising phrase when the garden
+// offers a blessing, a fanfare for victory — and a soft night drone
+// underneath it all once the player first interacts, so the garden hums
+// even between waves. Everything is guarded so a missing or locked
 // AudioContext never breaks the game.
 export function createAudio() {
   let context = null;
@@ -119,6 +120,11 @@ export function createAudio() {
     },
     waveClear() {
       [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.22, 'triangle', 0.5, i * 0.09));
+    },
+    /** The garden offers a blessing: a warm phrase, lower and slower than
+     *  the wave-clear harp, so the choice feels like a gift, not a fanfare. */
+    blessing() {
+      [392, 493.88, 587.33, 783.99].forEach((f, i) => tone(f, 0.34, 'sine', 0.45, i * 0.11));
     },
     waveStart() {
       tone(392, 0.18, 'triangle', 0.45);

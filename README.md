@@ -19,6 +19,12 @@ warden. Guard the five blooms through ten waves — then face the Moth Queen.
   and she calls darters instead of flutters.
 - **Pickups**: dew heals a heart, shards grant triple shot for 10 seconds.
   Chained kills build a combo multiplier up to ×5.
+- **Blessings**: clearing a wave earns a choice of three blessings, kept for
+  the rest of the run — Swift Wings (+12% speed), Rapid Light (15% faster
+  shots), Mothbane Rounds (+1 damage), Far Light (faster, longer bolts),
+  Moonpetal Mend (regrow a petal on the most torn bloom) and Guardian's
+  Oath (latched moths drain 25% slower). Stacks count; the held blessings
+  show under the HUD, and the victory screen lists them.
 - **Win** by clearing all ten waves; the victory screen rates the garden
   one to three stars by blooms saved. **Lose** all five blooms, or all three
   hearts, and the garden goes dark. Best score is kept in localStorage.
@@ -37,6 +43,8 @@ running the loop.
 
 - `game/src/config.js` — every tuning number and colour
 - `game/src/world.js` — the rules: blooms, moths, spores, waves, score
+- `game/src/blessings.js` — the wave-clear blessings: the draft, the effects,
+  and where the three cards sit
 - `game/src/render.js` — everything the eye sees
 - `game/src/fx.js` — particles, floating score text, shockwave rings
 - `game/src/input.js` — keyboard and mouse

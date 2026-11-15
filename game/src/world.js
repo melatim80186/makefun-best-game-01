@@ -16,6 +16,11 @@ import {
   WAVE_CLEAR_BASE, WAVE_CLEAR_PER_BLOOM,
 } from './config.js';
 import { spawnBurst, spawnFloater, spawnRing, spawnSparkle, stepFx } from './fx.js';
+import {
+  blessingDef, bulletDamage, bulletLifeMultiplier, bulletSpeedMultiplier,
+  drainTimeMultiplier, fireIntervalMultiplier, heldCount, rollBlessingDraft,
+  wardenSpeedMultiplier,
+} from './blessings.js';
 
 export const EVENT_KILL = 1;
 export const EVENT_HURT = 2;
@@ -29,6 +34,7 @@ export const EVENT_BOSS = 256;
 export const EVENT_SPIT = 512;
 export const EVENT_ENRAGE = 1024;
 export const EVENT_SPORE_POP = 2048;
+export const EVENT_BLESSING = 4096;
 
 /** Where a moth enters: just outside one of the four edges. */
 function spawnPoint(random) {
@@ -147,6 +153,8 @@ export function createWorld(random) {
     won: false,
     boss: null,
     best: 0,
+    blessings: {},
+    blessingDraft: null,
   };
 
   function initScenery() {
@@ -217,6 +225,8 @@ export function createWorld(random) {
     state.over = false;
     state.won = false;
     state.boss = null;
+    state.blessings = {};
+    state.blessingDraft = null;
     initScenery();
   }
 
@@ -277,15 +287,44 @@ export function createWorld(random) {
 
   function fireBullet(angle) {
     const p = state.player;
+    const speed = PLAYER.bulletSpeed * bulletSpeedMultiplier(state.blessings);
     state.bullets.push({
       x: p.x + Math.cos(angle) * (PLAYER.radius + 6),
       y: p.y + Math.sin(angle) * (PLAYER.radius + 6),
-      vx: Math.cos(angle) * PLAYER.bulletSpeed,
-      vy: Math.sin(angle) * PLAYER.bulletSpeed,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
       radius: PLAYER.bulletRadius,
-      life: PLAYER.bulletLife,
+      life: PLAYER.bulletLife * bulletLifeMultiplier(state.blessings),
     });
     state.shotsFired += 1;
+  }
+
+  /** Take one blessing from the open draft: stack it on the warden, or mend
+   *  the most torn bloom at once for Moonpetal Mend. Returns false when
+   *  there is no draft to choose from, so a stray press is harmless. */
+  function chooseBlessing(index) {
+    const draft = state.blessingDraft;
+    if (!draft || index < 0 || index >= draft.length) return false;
+    const def = blessingDef(draft[index]);
+    if (!def) return false;
+    state.blessingDraft = null;
+    if (def.id === 'moonpetal') {
+      let torn = null;
+      for (const bloom of state.blooms) {
+        if (bloom.alive && bloom.petals < BLOOM.petals && (!torn || bloom.petals < torn.petals)) torn = bloom;
+      }
+      if (torn) {
+        torn.petals += 1;
+        spawnBurst(state, random, torn.x, torn.y - 12, torn.hue, 12, 140);
+        spawnFloater(state, torn.x, torn.y - 30, `${torn.name} bloom regrows a petal`, '#7dff9e');
+      }
+    } else {
+      state.blessings[def.id] = heldCount(state.blessings, def.id) + 1;
+    }
+    const p = state.player;
+    spawnFloater(state, p.x, p.y - 30, `${def.name} chosen!`, def.colour);
+    spawnRing(state, p.x, p.y, def.colour, 130);
+    return true;
   }
 
   /** Advance the simulation one fixed step. `move` is {x, y} in [-1, 1], `aim` is the
@@ -341,6 +380,10 @@ export function createWorld(random) {
         }
         state.waveState = 'intro';
         state.waveTimer = 3;
+        // A cleared wave (but not the last) earns a blessing: the garden
+        // offers three, the warden keeps one, and the run grows stronger.
+        state.blessingDraft = rollBlessingDraft(random, state.blessings, state.blooms);
+        events |= EVENT_BLESSING;
       }
     }
 
@@ -351,7 +394,7 @@ export function createWorld(random) {
     p.vx *= drag;
     p.vy *= drag;
     const speed = Math.hypot(p.vx, p.vy);
-    const maxSpeed = PLAYER.speed;
+    const maxSpeed = PLAYER.speed * wardenSpeedMultiplier(state.blessings);
     if (speed > maxSpeed) {
       p.vx = (p.vx / speed) * maxSpeed;
       p.vy = (p.vy / speed) * maxSpeed;
@@ -362,7 +405,7 @@ export function createWorld(random) {
     if (p.invuln > 0) p.invuln -= dt;
     p.fireCd -= dt;
     if (firing && p.fireCd <= 0) {
-      p.fireCd = PLAYER.fireInterval;
+      p.fireCd = PLAYER.fireInterval * fireIntervalMultiplier(state.blessings);
       const triple = state.time < p.tripleUntil;
       fireBullet(p.angle);
       if (triple) {
@@ -408,7 +451,7 @@ export function createWorld(random) {
         if (Math.hypot(b.x - moth.x, b.y - moth.y) < b.radius + moth.radius) {
           state.bullets.splice(i, 1);
           state.shotsHit += 1;
-          moth.hp -= 1;
+          moth.hp -= bulletDamage(state.blessings);
           moth.hitFlash = 0.12;
           spawnBurst(state, random, b.x, b.y, '#ffe98a', 5, 140);
           if (moth.hp <= 0) killMoth(moth, j);
@@ -471,7 +514,7 @@ export function createWorld(random) {
         moth.drainTimer -= dt;
         bloom.drainFlash = 0.25;
         if (moth.drainTimer <= 0) {
-          moth.drainTimer = moth.drainSeconds;
+          moth.drainTimer = moth.drainSeconds * drainTimeMultiplier(state.blessings);
           events |= losePetal(bloom);
           if (state.over) return events;
         }
@@ -567,7 +610,7 @@ export function createWorld(random) {
         const b = moth.targetBloom;
         if (Math.hypot(moth.x - b.x, moth.y - b.y) < BLOOM.radius + moth.radius - 6) {
           moth.latched = true;
-          moth.drainTimer = moth.drainSeconds;
+          moth.drainTimer = moth.drainSeconds * drainTimeMultiplier(state.blessings);
         }
       }
       // Touching the warden hurts the warden and costs the moth its life.
@@ -634,7 +677,7 @@ export function createWorld(random) {
   }
 
   reset();
-  return { state, reset, step, ambientStep, startWave, waveRoster };
+  return { state, reset, step, ambientStep, startWave, waveRoster, chooseBlessing };
 }
 
 export { STEP };

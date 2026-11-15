@@ -75,6 +75,12 @@ let lockFarSteps = 0;
 function autopilotStep(world, boost, mode = 'hunt') {
   const state = world.state;
   const p = state.player;
+  // A blessing draft pauses the fight: the warden takes the first card and
+  // the run goes on, so a staged game never stalls on an open choice.
+  if (state.blessingDraft) {
+    world.chooseBlessing(0);
+    return 0;
+  }
   if (mode === 'hold') {
     const move = { x: (FIELD.width / 2 - p.x) / 300, y: (FIELD.height / 2 - p.y) / 300 };
     const aim = { x: p.x, y: p.y - 100 };

@@ -9,9 +9,10 @@
 // The game itself: Pip, the last firefly warden, guards five glowing blooms
 // from shadow moths over ten waves, then faces the Moth Queen. Four moth
 // kinds (flutter, darter, tanker, spitter), spore globs to shoot down,
-// pickups, combos, a boss that enrages below half health, and a three-star
-// victory screen. The four screenshots under screenshots/ are real renders
-// of the game's own code, staged by game/src/shots.js (?shot=…&seed=…).
+// pickups, combos, wave-clear blessings to draft between waves, a boss that
+// enrages below half health, and a three-star victory screen. The four
+// screenshots under screenshots/ are real renders of the game's own code,
+// staged by game/src/shots.js (?shot=…&seed=…).
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

@@ -10,6 +10,9 @@
 // title screen's blooms are dimmed and dropped below the lettering, so no
 // flower ever sits on the title.
 import { BLOOM, COMBO_WINDOW, FIELD, MAX_WAVE, PALETTE, PICKUP, PLAYER, SPORE } from './config.js';
+import {
+  blessingCardAt, blessingCardRect, blessingDef, heldCount, heldSummary,
+} from './blessings.js';
 import { drawFx } from './fx.js';
 
 export const SCREEN_TITLE = 'title';
@@ -17,6 +20,10 @@ export const SCREEN_PLAY = 'play';
 export const SCREEN_PAUSED = 'paused';
 export const SCREEN_VICTORY = 'victory';
 export const SCREEN_OVER = 'over';
+export const SCREEN_BLESSING = 'blessing';
+
+/** Which blessing card a point on the field falls on, or -1. */
+export const pickBlessingCard = blessingCardAt;
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -409,6 +416,14 @@ export function createRenderer(canvas) {
       }
       ctx.textAlign = 'left';
     }
+    // What the warden already holds, in small gold text under the HUD bar,
+    // so a run's growth reads at a glance and never covers the boss label.
+    const held = heldSummary(state.blessings);
+    if (held) {
+      ctx.fillStyle = 'rgba(255, 217, 77, 0.9)';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.fillText(`✦ ${held}`, 28, 80);
+    }
     // Controls hint on its own pill, so a moth flying low never covers it.
     const hint = 'WASD / arrows — move    ·    mouse — aim    ·    click / Space — shoot    ·    P — pause    ·    M — mute';
     ctx.font = '13px system-ui, sans-serif';
@@ -418,6 +433,54 @@ export function createRenderer(canvas) {
     ctx.fill();
     ctx.fillStyle = 'rgba(170, 179, 214, 0.95)';
     ctx.fillText(hint, 20, 704);
+  }
+
+  /** The blessing draft: three cards in a row over the dimmed garden. Each
+   *  card shows its glyph and glow, its name, what it does, how many the
+   *  warden already holds, and its key — click it, or press 1, 2 or 3. */
+  function drawBlessing(state) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd94d';
+    ctx.font = 'bold 40px system-ui, sans-serif';
+    ctx.fillText('CHOOSE A BLESSING', 640, 150);
+    ctx.fillStyle = PALETTE.textDim;
+    ctx.font = '18px system-ui, sans-serif';
+    ctx.fillText('The garden rewards a warden who endures — keep one for the rest of the run.', 640, 182);
+    const draft = state.blessingDraft ?? [];
+    for (let i = 0; i < draft.length; i += 1) {
+      const def = blessingDef(draft[i]);
+      if (!def) continue;
+      const r = blessingCardRect(i);
+      const held = heldCount(state.blessings, def.id);
+      ctx.fillStyle = PALETTE.panel;
+      roundRect(ctx, r.x, r.y, r.width, r.height, 16);
+      ctx.fill();
+      ctx.strokeStyle = def.colour;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = def.colour;
+      ctx.font = '44px system-ui, sans-serif';
+      ctx.fillText(def.glyph, r.x + r.width / 2, r.y + 64);
+      ctx.fillStyle = PALETTE.text;
+      ctx.font = 'bold 21px system-ui, sans-serif';
+      ctx.fillText(def.name, r.x + r.width / 2, r.y + 108);
+      ctx.fillStyle = PALETTE.textDim;
+      ctx.font = '15px system-ui, sans-serif';
+      ctx.fillText(def.lines[0], r.x + r.width / 2, r.y + 140);
+      ctx.fillText(def.lines[1], r.x + r.width / 2, r.y + 164);
+      if (held > 0) {
+        ctx.fillStyle = def.colour;
+        ctx.font = 'bold 15px system-ui, sans-serif';
+        ctx.fillText(`held ×${held} — stacks`, r.x + r.width / 2, r.y + 196);
+      }
+      ctx.fillStyle = '#ffd94d';
+      ctx.font = 'bold 17px system-ui, sans-serif';
+      ctx.fillText(`[ ${i + 1} ]`, r.x + r.width / 2, r.y + 228);
+    }
+    ctx.fillStyle = PALETTE.textDim;
+    ctx.font = '16px system-ui, sans-serif';
+    ctx.fillText('Click a card or press 1, 2 or 3 — the garden waits for no moth, but it waits for you.', 640, 512);
+    ctx.textAlign = 'left';
   }
 
   function drawPanel(title, lines, accent) {
@@ -470,6 +533,7 @@ export function createRenderer(canvas) {
     ctx.fillText('WASD / arrows — fly      ·      mouse — aim      ·      click / Space — shoot light', 640, 392);
     ctx.fillText('Moths latched onto a bloom drain its petals. Spitters lob spores — shoot them down.', 640, 424);
     ctx.fillText('Lose all five blooms, or all three hearts, and the garden goes dark.', 640, 456);
+    ctx.fillText('Clear a wave and the garden offers a blessing — pick one, and grow stronger.', 640, 488);
     ctx.fillStyle = '#ffd94d';
     ctx.font = 'bold 24px system-ui, sans-serif';
     const pulse = 0.8 + 0.2 * Math.sin(state.time * 3);
@@ -497,11 +561,13 @@ export function createRenderer(canvas) {
     ctx.font = '44px system-ui, sans-serif';
     ctx.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), 640, 250);
     const accuracy = state.shotsFired > 0 ? Math.round((state.shotsHit / state.shotsFired) * 100) : 0;
+    const held = heldSummary(state.blessings);
     drawPanelLinesOnly([
       `You cleared all ${MAX_WAVE} waves and the Moth Queen is gone.`,
       `Score  ${state.score.toLocaleString('en-US')}    ·    Best  ${Math.max(best, state.score).toLocaleString('en-US')}`,
       `Blooms saved  ${alive} / ${BLOOM.count}    ·    Moths banished  ${state.kills}`,
       `Shot accuracy  ${accuracy}%    ·    ${state.shotsFired} lights fired`,
+      held ? `Blessings held  ${held}` : 'No blessings — the garden was won on bare wings.',
     ]);
     ctx.textAlign = 'left';
   }
@@ -593,6 +659,14 @@ export function createRenderer(canvas) {
     }
     if (screen === SCREEN_OVER) {
       drawOver(state, best);
+      return;
+    }
+    if (screen === SCREEN_BLESSING) {
+      drawWorld(state);
+      drawHud(state, best);
+      ctx.fillStyle = 'rgba(8, 10, 30, 0.45)';
+      ctx.fillRect(0, 0, FIELD.width, FIELD.height);
+      drawBlessing(state);
       return;
     }
     drawWorld(state);
