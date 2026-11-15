@@ -10,7 +10,8 @@
 // from shadow moths over ten waves, then faces the Moth Queen. Four moth
 // kinds (flutter, darter, tanker, spitter), spore globs to shoot down,
 // pickups, combos, a boss that enrages below half health, and a three-star
-// victory screen.
+// victory screen. The four screenshots under screenshots/ are real renders
+// of the game's own code, staged by game/src/shots.js (?shot=…&seed=…).
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
