@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lumen Garden — Warden of the Last Light: fly Pip, the last firefly warden, and guard five glowing blooms from shadow moths over ten waves, then face the Moth Queen.">
+<title>Lumen Garden — Warden of the Last Light</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23ffd94d'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fff7d6'/%3E%3C/svg%3E">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0e26; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  /* Read aloud, never shown: the status line screen readers announce. */
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Lumen Garden: fly the firefly warden with WASD or the arrow keys, aim with the mouse, shoot light with click or Space, and guard the five blooms from the shadow moths"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+<noscript><p style="color:#f2f0ff;font-family:system-ui,sans-serif;text-align:center;margin-top:40vh">Lumen Garden needs JavaScript to play.</p></noscript>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
